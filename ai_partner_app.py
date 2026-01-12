@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 # --- PAGE CONFIG ---
-st.set_page_config(page_title="Robotu' nostru, sclavu' nostru", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="Buna inteligenta artificala, dar mai buna iubirea umana", page_icon="🤖", layout="wide")
 
 # --- 1. ACCESS CONTROL ---
 def check_password():
@@ -120,9 +120,20 @@ def save_chat_history():
         # Load existing history
         history = load_chat_history_from_disk()
         
-        # Add to history (limit to last 50 chats)
-        history.insert(0, chat_data)
-        history = history[:50]
+        # Check if this chat already exists (same preview and similar length)
+        is_duplicate = False
+        for i, existing_chat in enumerate(history):
+            if (existing_chat["preview"] == preview and 
+                abs(len(existing_chat["messages"]) - len(st.session_state.messages)) < 3):
+                # Update existing chat instead of adding new
+                history[i] = chat_data
+                is_duplicate = True
+                break
+        
+        if not is_duplicate:
+            # Add to history (limit to last 50 chats)
+            history.insert(0, chat_data)
+            history = history[:50]
         
         # Save to disk
         save_chat_history_to_disk(history)
@@ -307,7 +318,7 @@ if check_password():
                 )
     
     # --- MAIN CHAT INTERFACE ---
-    st.title("🤖 Robotu' nostru, sclavu' nostru")
+    st.title("🤖 Buna inteligenta artificala, dar mai buna iubirea umana")
     
     # Mode indicator in main area
     col1, col2 = st.columns([3, 1])
@@ -357,6 +368,9 @@ if check_password():
                 
                 # Add assistant response to history
                 st.session_state.messages.append({"role": "assistant", "content": response})
+                
+                # Auto-save after each response
+                save_chat_history()
             
             except Exception as e:
                 st.error(f"❌ Error: {str(e)}")
