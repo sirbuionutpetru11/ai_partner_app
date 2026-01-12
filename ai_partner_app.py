@@ -5,7 +5,7 @@ from fpdf import FPDF
 import io
 
 # --- PAGE CONFIG ---
-st.set_page_config(page_title="AI Partner", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="Robotu' nostru, sclavu' nostru", page_icon="🤖", layout="wide")
 
 # --- 1. ACCESS CONTROL ---
 def check_password():
@@ -14,7 +14,7 @@ def check_password():
         st.session_state.password_correct = False
     
     if not st.session_state.password_correct:
-        st.title("🔐 AI Partner - Access Required")
+        st.title("🔐 Robotu' nostru - Access Required")
         pwd = st.text_input("Enter Passcode", type="password", key="password_input")
         if st.button("Unlock"):
             if pwd == st.secrets["APP_PASSWORD"]:  # Set this in Streamlit Secrets
@@ -35,7 +35,7 @@ def create_pdf(messages):
     
     # Title
     pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, "AI Partner - Chat Transcript", ln=True, align="C")
+    pdf.cell(0, 10, "Robotu' nostru - Chat Transcript", ln=True, align="C")
     pdf.set_font("Arial", "", 10)
     pdf.cell(0, 10, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True, align="C")
     pdf.ln(5)
@@ -89,7 +89,7 @@ MODEL_CONFIGS = {
         "price_input": "$0.25/M tokens",
         "price_cached": "$0.025/M tokens (90% off)",
         "price_output": "$2.00/M tokens",
-        "temperature": 0.7,
+        "temperature": 1.0,
         "supports_streaming": True
     }
 }
@@ -114,43 +114,47 @@ if check_password():
         ]
     
     if "current_mode" not in st.session_state:
-        st.session_state.current_mode = "⚡ Bun la tat"
+        st.session_state.current_mode = "📚 Bombonica studentica"
     
     # --- SIDEBAR SETTINGS ---
     with st.sidebar:
         st.title("⚙️ Settings")
         
-        # Quick Mode Toggle - Most Prominent
+        # 1. Mode Toggle (first)
         st.subheader("🎛️ Model Mode")
         mode = st.radio(
             "Select Mode:",
             list(MODEL_CONFIGS.keys()),
-            index=1,  # Default to Bun la tat
+            index=2,  # Default to Bombonica studentica (index 2)
             key="mode_selector",
             help="Toggle between different AI modes"
         )
         st.session_state.current_mode = mode
         
-        # Display current mode info
-        config = MODEL_CONFIGS[mode]
-        st.info(f"""
-        **{mode}**
+        st.divider()
         
-        💰 Cost: {config['cost']}  
-        📝 Best for: {config['best_for']}
-        
-        {config['description']}
-        
-        **Pricing:**
-        • Input: {config['price_input']}
-        • Cached: {config['price_cached']}
-        • Output: {config['price_output']}
-        """)
+        # 2. Upload Documents (second)
+        st.subheader("📎 Upload Documents")
+        uploaded_file = st.file_uploader(
+            "Upload for analysis",
+            type=['txt', 'pdf', 'docx', 'md'],
+            help="Upload once, ask multiple questions to maximize cache benefits"
+        )
+        if uploaded_file:
+            st.success("✅ Document loaded!")
         
         st.divider()
         
-        # Advanced Settings (collapsible)
+        # 3. Stats section (third)
+        st.subheader("📊 Session Stats")
+        message_count = len([m for m in st.session_state.messages if m["role"] not in ["system", "developer"]])
+        st.metric("Messages", message_count)
+        
+        st.divider()
+        
+        # 4. Advanced Settings (fourth - collapsible)
         with st.expander("🔧 Advanced Settings"):
+            config = MODEL_CONFIGS[mode]
             # Temperature
             temperature = st.slider(
                 "Temperature:",
@@ -163,26 +167,12 @@ if check_password():
             
             # Caching info
             st.markdown("### 💾 Prompt Caching")
-            st.success("✅ **Auto-enabled** - 90% discount on repeated content!")
+            st.success("✅ Auto-enabled - 90% discount!")
             st.caption("Upload documents once, ask multiple questions at discounted rates")
-            
-            # Cache examples
-            with st.expander("💡 Caching Examples"):
-                st.markdown("""
-                **Example 1: Document Analysis**
-                - First question: Full price
-                - Next 10 questions: 90% off!
-                
-                **Example 2: Code Review**
-                - Paste codebase once
-                - Multiple reviews: 90% off!
-                
-                **Keep asking questions in same chat to maintain cache!**
-                """)
         
         st.divider()
         
-        # Chat management
+        # 5. Chat management (last)
         st.subheader("📝 Chat Management")
         
         col1, col2 = st.columns(2)
@@ -203,44 +193,14 @@ if check_password():
                     mime="application/pdf",
                     use_container_width=True
                 )
-        
-        st.divider()
-        
-        # Stats
-        st.subheader("📊 Session Stats")
-        message_count = len([m for m in st.session_state.messages if m["role"] not in ["system", "developer"]])
-        st.metric("Messages", message_count)
-        st.caption(f"Model: {config['model']}")
-        
-        # Cost estimate (rough)
-        if message_count > 0:
-            if config['model'] == "gpt-5-mini":
-                est_cost = "< $0.01"
-            elif config['model'] == "gpt-5":
-                est_cost = "~$0.05-0.15"
-            else:  # gpt-5.2
-                est_cost = "~$0.10-0.30"
-            st.caption(f"Est. session cost: {est_cost}")
-            
-        # Model comparison
-        with st.expander("📊 Model Comparison"):
-            st.markdown("""
-            | Mode | Input | Cached | Output |
-            |------|-------|--------|--------|
-            | 💻 Iubirelu' | $1.75 | $0.175 | $14.00 |
-            | ⚡ Bun la tat | $1.25 | $0.125 | $10.00 |
-            | 📚 Bombonica | $0.25 | $0.025 | $2.00 |
-            
-            *Prices per 1M tokens*
-            """)
     
     # --- MAIN CHAT INTERFACE ---
-    st.title("🤖 AI Partner")
+    st.title("🤖 Robotu' nostru, sclavu' nostru")
     
     # Mode indicator in main area
     col1, col2 = st.columns([3, 1])
     with col1:
-        st.caption("Your intelligent assistant for IT and Academic tasks")
+        st.caption("Puiule, intreba si vei gasi raspuns. La el sau la mine")
     with col2:
         # Show mode emoji and short name
         mode_display = mode.split()[0] + " " + mode.split()[1]
@@ -294,17 +254,3 @@ if check_password():
                 else:
                     st.info("Please check your API key and try again.")
 
-# --- OPTIONAL: FILE UPLOAD SECTION ---
-# Uncomment below to add file upload capability for maximum caching benefits
-
-with st.sidebar:
-    st.divider()
-    st.subheader("📎 Upload Documents")
-    uploaded_file = st.file_uploader(
-        "Upload for analysis (maximizes cache benefits)",
-        type=['txt', 'pdf', 'docx', 'md'],
-        help="Upload once, ask multiple questions to save 90% on costs"
-    )
-    if uploaded_file:
-        # Process file content
-        st.success("✅ Document loaded & cached!")
