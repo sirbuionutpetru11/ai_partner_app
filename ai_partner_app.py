@@ -3,6 +3,8 @@ from openai import OpenAI
 from datetime import datetime
 from fpdf import FPDF
 import io
+import json
+import os
 
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="Robotu' nostru, sclavu' nostru", page_icon="🤖", layout="wide")
@@ -33,10 +35,14 @@ def create_pdf(messages):
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
     
+    # Add Unicode font support
+    pdf.add_font('DejaVu', '', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', uni=True)
+    pdf.add_font('DejaVu', 'B', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', uni=True)
+    
     # Title
-    pdf.set_font("Arial", "B", 16)
+    pdf.set_font("DejaVu", "B", 16)
     pdf.cell(0, 10, "Robotu' nostru - Chat Transcript", ln=True, align="C")
-    pdf.set_font("Arial", "", 10)
+    pdf.set_font("DejaVu", "", 10)
     pdf.cell(0, 10, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True, align="C")
     pdf.ln(5)
     
@@ -44,20 +50,59 @@ def create_pdf(messages):
     for message in messages:
         if message["role"] not in ["system", "developer"]:
             # Role header
-            pdf.set_font("Arial", "B", 12)
+            pdf.set_font("DejaVu", "B", 12)
             role = "User" if message["role"] == "user" else "Assistant"
             pdf.cell(0, 8, role + ":", ln=True)
             
-            # Message content
-            pdf.set_font("Arial", "", 11)
-            # Handle multi-line text
+            # Message content - handle encoding errors
+            pdf.set_font("DejaVu", "", 11)
             content = message["content"]
-            pdf.multi_cell(0, 6, content)
+            # Replace problematic characters if DejaVu font not available
+            try:
+                pdf.multi_cell(0, 6, content)
+            except Exception as e:
+                # Fallback: remove special characters
+                clean_content = content.encode('ascii', 'ignore').decode('ascii')
+                pdf.multi_cell(0, 6, clean_content)
             pdf.ln(3)
     
-    return pdf.output(dest='S').encode('latin-1')
+    return pdf.output(dest='S')
 
-# --- 3. MODEL CONFIGURATIONS ---
+# --- 3. CHAT HISTORY FUNCTIONS ---
+def save_chat_history():
+    """Save current chat to history"""
+    if len(st.session_state.messages) > 1:  # Only save if there are messages beyond system prompt
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # Get first user message as preview
+        preview = "New Chat"
+        for msg in st.session_state.messages:
+            if msg["role"] == "user":
+                preview = msg["content"][:50] + "..." if len(msg["content"]) > 50 else msg["content"]
+                break
+        
+        chat_data = {
+            "timestamp": timestamp,
+            "preview": preview,
+            "messages": st.session_state.messages,
+            "mode": st.session_state.current_mode
+        }
+        
+        # Initialize history if not exists
+        if "chat_history" not in st.session_state:
+            st.session_state.chat_history = []
+        
+        # Add to history (limit to last 20 chats)
+        st.session_state.chat_history.insert(0, chat_data)
+        st.session_state.chat_history = st.session_state.chat_history[:20]
+
+def load_chat_from_history(index):
+    """Load a chat from history"""
+    if "chat_history" in st.session_state and index < len(st.session_state.chat_history):
+        chat_data = st.session_state.chat_history[index]
+        st.session_state.messages = chat_data["messages"]
+        st.session_state.current_mode = chat_data["mode"]
+
+# --- 4. MODEL CONFIGURATIONS ---
 MODEL_CONFIGS = {
     "💻 Iubirelu' programelu'": {
         "model": "gpt-5.2",
@@ -116,6 +161,9 @@ if check_password():
     if "current_mode" not in st.session_state:
         st.session_state.current_mode = "📚 Bombonica studentica"
     
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+    
     # --- SIDEBAR SETTINGS ---
     with st.sidebar:
         st.title("⚙️ Settings")
@@ -132,7 +180,24 @@ if check_password():
         st.session_state.current_mode = mode
         
         st.divider()
-        
+        # Chat History section
+        if "chat_history" in st.session_state and len(st.session_state.chat_history) > 0:
+            st.divider()
+            with st.expander(f"📜 Chat History ({len(st.session_state.chat_history)})"):
+                for i, chat in enumerate(st.session_state.chat_history):
+                    col1, col2 = st.columns([4, 1])
+                    with col1:
+                        if st.button(
+                            f"💬 {chat['preview'][:40]}...",
+                            key=f"load_chat_{i}",
+                            help=f"From: {chat['timestamp']}"
+                        ):
+                            load_chat_from_history(i)
+                            st.rerun()
+                    with col2:
+                        st.caption(chat['timestamp'].split()[1][:5])  # Show time only
+        st.divider()
+
         # 2. Upload Documents (second)
         st.subheader("📎 Upload Documents")
         uploaded_file = st.file_uploader(
@@ -178,6 +243,8 @@ if check_password():
         col1, col2 = st.columns(2)
         with col1:
             if st.button("🗑️ Clear Chat", use_container_width=True):
+                # Save current chat before clearing
+                save_chat_history()
                 # Keep the system message
                 st.session_state.messages = [st.session_state.messages[0]]
                 st.rerun()
@@ -195,7 +262,7 @@ if check_password():
                 )
     
     # --- MAIN CHAT INTERFACE ---
-    st.title("🤖 Robotu' nostru, sclavu' nostru")
+    st.title("🤖 Robotelu' maricelu'")
     
     # Mode indicator in main area
     col1, col2 = st.columns([3, 1])
