@@ -112,7 +112,7 @@ MODEL_CONFIGS = {
         "price_input": "$1.75/M tokens",
         "price_cached": "$0.175/M tokens (90% off)",
         "price_output": "$14.00/M tokens",
-        "temperature": 0.7,
+        "temperature": 1.0,
         "supports_streaming": True
     },
     "⚡ Bun la tat": {
@@ -123,7 +123,7 @@ MODEL_CONFIGS = {
         "price_input": "$1.25/M tokens",
         "price_cached": "$0.125/M tokens (90% off)",
         "price_output": "$10.00/M tokens",
-        "temperature": 0.7,
+        "temperature": 1.0,
         "supports_streaming": True
     },
     "📚 Bombonica studentica": {
@@ -180,9 +180,9 @@ if check_password():
         st.session_state.current_mode = mode
         
         st.divider()
-        # Chat History section
+        
+        # 2. Chat History section (second)
         if "chat_history" in st.session_state and len(st.session_state.chat_history) > 0:
-            st.divider()
             with st.expander(f"📜 Chat History ({len(st.session_state.chat_history)})"):
                 for i, chat in enumerate(st.session_state.chat_history):
                     col1, col2 = st.columns([4, 1])
@@ -196,9 +196,9 @@ if check_password():
                             st.rerun()
                     with col2:
                         st.caption(chat['timestamp'].split()[1][:5])  # Show time only
-        st.divider()
-
-        # 2. Upload Documents (second)
+            st.divider()
+        
+        # 3. Upload Documents (third)
         st.subheader("📎 Upload Documents")
         uploaded_file = st.file_uploader(
             "Upload for analysis",
@@ -210,14 +210,14 @@ if check_password():
         
         st.divider()
         
-        # 3. Stats section (third)
+        # 4. Stats section (fourth)
         st.subheader("📊 Session Stats")
         message_count = len([m for m in st.session_state.messages if m["role"] not in ["system", "developer"]])
         st.metric("Messages", message_count)
         
         st.divider()
         
-        # 4. Advanced Settings (fourth - collapsible)
+        # 5. Advanced Settings (fifth - collapsible)
         with st.expander("🔧 Advanced Settings"):
             config = MODEL_CONFIGS[mode]
             # Temperature
@@ -237,7 +237,7 @@ if check_password():
         
         st.divider()
         
-        # 5. Chat management (last)
+        # 6. Chat management (last)
         st.subheader("📝 Chat Management")
         
         col1, col2 = st.columns(2)
@@ -262,7 +262,7 @@ if check_password():
                 )
     
     # --- MAIN CHAT INTERFACE ---
-    st.title("🤖 Robotelu' maricelu'")
+    st.title("🤖 Robotu' nostru, sclavu' nostru")
     
     # Mode indicator in main area
     col1, col2 = st.columns([3, 1])
@@ -320,4 +320,3 @@ if check_password():
                     st.info("💡 Tip: GPT-5 models might require API access. Check OpenAI's model availability.")
                 else:
                     st.info("Please check your API key and try again.")
-
