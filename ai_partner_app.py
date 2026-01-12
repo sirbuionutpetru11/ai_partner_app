@@ -5,6 +5,7 @@ from fpdf import FPDF
 import io
 import json
 import os
+from pathlib import Path
 
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="Robotu' nostru, sclavu' nostru", page_icon="🤖", layout="wide")
@@ -68,7 +69,36 @@ def create_pdf(messages):
     
     return pdf.output(dest='S')
 
-# --- 3. CHAT HISTORY FUNCTIONS ---
+# --- 3. CHAT HISTORY FUNCTIONS (PERSISTENT) ---
+# Storage directory
+HISTORY_DIR = Path.home() / ".ai_partner_history"
+HISTORY_FILE = HISTORY_DIR / "chat_history.json"
+
+def ensure_history_dir():
+    """Create history directory if it doesn't exist"""
+    HISTORY_DIR.mkdir(exist_ok=True)
+
+def load_chat_history_from_disk():
+    """Load chat history from disk"""
+    ensure_history_dir()
+    if HISTORY_FILE.exists():
+        try:
+            with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            st.warning(f"Could not load chat history: {e}")
+            return []
+    return []
+
+def save_chat_history_to_disk(history):
+    """Save chat history to disk"""
+    ensure_history_dir()
+    try:
+        with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        st.warning(f"Could not save chat history: {e}")
+
 def save_chat_history():
     """Save current chat to history"""
     if len(st.session_state.messages) > 1:  # Only save if there are messages beyond system prompt
@@ -87,13 +117,18 @@ def save_chat_history():
             "mode": st.session_state.current_mode
         }
         
-        # Initialize history if not exists
-        if "chat_history" not in st.session_state:
-            st.session_state.chat_history = []
+        # Load existing history
+        history = load_chat_history_from_disk()
         
-        # Add to history (limit to last 20 chats)
-        st.session_state.chat_history.insert(0, chat_data)
-        st.session_state.chat_history = st.session_state.chat_history[:20]
+        # Add to history (limit to last 50 chats)
+        history.insert(0, chat_data)
+        history = history[:50]
+        
+        # Save to disk
+        save_chat_history_to_disk(history)
+        
+        # Update session state
+        st.session_state.chat_history = history
 
 def load_chat_from_history(index):
     """Load a chat from history"""
@@ -101,6 +136,12 @@ def load_chat_from_history(index):
         chat_data = st.session_state.chat_history[index]
         st.session_state.messages = chat_data["messages"]
         st.session_state.current_mode = chat_data["mode"]
+
+def delete_chat_from_history(index):
+    """Delete a specific chat from history"""
+    if "chat_history" in st.session_state and index < len(st.session_state.chat_history):
+        st.session_state.chat_history.pop(index)
+        save_chat_history_to_disk(st.session_state.chat_history)
 
 # --- 4. MODEL CONFIGURATIONS ---
 MODEL_CONFIGS = {
@@ -162,7 +203,7 @@ if check_password():
         st.session_state.current_mode = "📚 Bombonica studentica"
     
     if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
+        st.session_state.chat_history = load_chat_history_from_disk()
     
     # --- SIDEBAR SETTINGS ---
     with st.sidebar:
@@ -185,10 +226,10 @@ if check_password():
         if "chat_history" in st.session_state and len(st.session_state.chat_history) > 0:
             with st.expander(f"📜 Chat History ({len(st.session_state.chat_history)})"):
                 for i, chat in enumerate(st.session_state.chat_history):
-                    col1, col2 = st.columns([4, 1])
+                    col1, col2, col3 = st.columns([5, 1, 1])
                     with col1:
                         if st.button(
-                            f"💬 {chat['preview'][:40]}...",
+                            f"💬 {chat['preview'][:35]}...",
                             key=f"load_chat_{i}",
                             help=f"From: {chat['timestamp']}"
                         ):
@@ -196,6 +237,10 @@ if check_password():
                             st.rerun()
                     with col2:
                         st.caption(chat['timestamp'].split()[1][:5])  # Show time only
+                    with col3:
+                        if st.button("🗑️", key=f"delete_chat_{i}", help="Delete"):
+                            delete_chat_from_history(i)
+                            st.rerun()
             st.divider()
         
         # 3. Upload Documents (third)
